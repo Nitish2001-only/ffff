@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Product - Ganajan Krushi Seva</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 5px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .actions {
+      margin-top: 25px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .save {
+      background: #28a745;
+      color: white;
+    }
+
+    .cancel {
+      background: #ccc;
+      color: #333;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: none;
+      z-index: 1001;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <button class="back-button" onclick="window.location.href='index.html'">←</button>
+
+  <h2>Add New Product</h2>
+
+  <form id="productForm">
+    <label>Product Name*</label>
+    <input type="text" id="product" required>
+
+    <label>Company Name*</label>
+    <input type="text" id="company" required>
+
+    <label>Cost (₹)</label>
+    <input type="text" id="cost">
+
+    <label>Cash (₹)</label>
+    <input type="text" id="cash">
+
+    <label>Credit (₹)</label>
+    <input type="text" id="credit">
+
+    <div class="actions">
+      <button type="submit" class="save">Save</button>
+      <button type="button" class="cancel" onclick="window.location.href='index.html'">Cancel</button>
+    </div>
+  </form>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzqGdo0RgZiT2bDiOV6LZ2P8R3XM6DXqxQv0t-NTK880vhhAf-I-0x0L3PivqROsSbkkA/exec';
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 2000);
+    }
+
+    document.getElementById('productForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const product = document.getElementById('product').value.trim();
+      const company = document.getElementById('company').value.trim();
+      const cost = document.getElementById('cost').value.trim();
+      const cash = document.getElementById('cash').value.trim();
+      const credit = document.getElementById('credit').value.trim();
+      const code = prompt("Enter Admin Code");
+
+      if (!product || !company) {
+        showToast("Product and Company are required");
+        return;
+      }
+
+      if (!code) {
+        showToast("Admin code is required");
+        return;
+      }
+
+      const payload = {
+        product, company, cost, cash, credit, code
+      };
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+          showToast("✅ Product added");
+
+          // Update local cache
+          const cached = JSON.parse(localStorage.getItem('products') || '[]');
+          const newRow = {
+            row: cached.length + 2,  // +2 because of header and 1-based index
+            product, company, cost, cash, credit, timestamp: new Date().toISOString()
+          };
+          cached.push(newRow);
+          localStorage.setItem('products', JSON.stringify(cached));
+
+          setTimeout(() => window.location.href = 'index.html', 1000);
+        } else {
+          showToast("❌ " + result.message);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+        showToast("Network error");
+      }
+    });
+  </script>
+</body>
+</html>

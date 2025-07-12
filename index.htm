@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ganajan Krushi Seva</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 1000;
+      padding: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #searchBar {
+      width: 95%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .product-list {
+      padding: 15px;
+    }
+
+    .product-card {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .product-card:hover {
+      transform: scale(1.01);
+    }
+
+    .product-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .company-name {
+      font-size: 14px;
+      color: #777;
+      margin-top: 4px;
+    }
+
+    .fab {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      background: #28a745;
+      color: white;
+      font-size: 30px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: none;
+      z-index: 1001;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <input type="text" id="searchBar" placeholder="Search product or company...">
+  </header>
+
+  <div class="product-list" id="productList"></div>
+
+  <button class="fab" onclick="window.location.href='add.html'">+</button>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzqGdo0RgZiT2bDiOV6LZ2P8R3XM6DXqxQv0t-NTK880vhhAf-I-0x0L3PivqROsSbkkA/exec';
+    let allProducts = [];
+    let currentSearch = "";
+
+    // Immediate load from cache
+    function loadCachedData() {
+      const cached = localStorage.getItem('products');
+      if (cached) {
+        try {
+          allProducts = JSON.parse(cached);
+          displayProducts(allProducts);
+        } catch (e) {
+          console.warn("Invalid cache:", e);
+        }
+      }
+      const code = localStorage.getItem('adminCode');
+      if (code) console.log("Admin code loaded");
+    }
+
+    // Display products filtered by current search
+    function displayProducts(products) {
+      const list = document.getElementById('productList');
+      list.innerHTML = '';
+
+      products.forEach(p => {
+        const productName = (p.product ?? '').toString().trim();
+        const companyName = (p.company ?? '').toString().trim();
+        if (!productName) return;
+
+        if (
+          currentSearch &&
+          !productName.toLowerCase().includes(currentSearch) &&
+          !companyName.toLowerCase().includes(currentSearch)
+        ) return;
+
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.onclick = () => window.location.href = `product.html?row=${p.row}`;
+        card.innerHTML = `
+          <div class="product-name">${productName}</div>
+          <div class="company-name">${companyName}</div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // Background sync with version check
+    async function syncWithBackend() {
+      try {
+        const cachedVersion = localStorage.getItem('version') || '';
+        const versionRes = await fetch(API_URL + '?action=getVersion');
+        const versionData = await versionRes.json();
+        const backendVersion = versionData.version || '';
+
+        if (backendVersion !== cachedVersion) {
+          const res = await fetch(API_URL + '?action=getAll');
+          const data = await res.json();
+          if (!Array.isArray(data.items)) throw new Error("Bad data");
+
+          allProducts = data.items;
+          localStorage.setItem('products', JSON.stringify(allProducts));
+          localStorage.setItem('version', backendVersion);
+          localStorage.setItem('adminCode', data.code);
+          displayProducts(allProducts);
+          showToast("Synced with server ✅");
+        }
+      } catch (e) {
+        console.warn("Sync error:", e);
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 2000);
+    }
+
+    document.getElementById('searchBar').addEventListener('input', function () {
+      currentSearch = this.value.toLowerCase();
+      displayProducts(allProducts);
+    });
+
+    window.onload = () => {
+      loadCachedData();
+      setTimeout(syncWithBackend, 600); // sync after short delay
+    };
+  </script>
+</body>
+</html>
